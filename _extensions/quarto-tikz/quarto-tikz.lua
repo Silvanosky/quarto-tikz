@@ -51,16 +51,34 @@ local function starts_with(start, str)
 end
 
 
-function RawBlock(el)
-  if starts_with('\\begin{tikzpicture}', el.text) then
-    local filetype = extension_for[FORMAT] or 'svg'
-    local fbasename = pandoc.sha1(el.text) .. '.' .. filetype
-    local fname = system.get_working_directory() .. '/' .. fbasename
-    if not file_exists(fname) then
-      tikz2image(el.text, filetype, fname)
+--function RawBlock(el)
+--  if starts_with('\\begin{tikzpicture}', el.text) then
+--    local filetype = extension_for[FORMAT] or 'svg'
+--    local fbasename = pandoc.sha1(el.text) .. '.' .. filetype
+ --   local fname = system.get_working_directory() .. '/' .. fbasename
+ --   if not file_exists(fname) then
+ --     tikz2image(el.text, filetype, fname)
+ --   end
+ --   return pandoc.Para({pandoc.Image({}, fbasename)})
+ -- else
+ --  return el
+ -- end
+--end
+
+local function rendertikz(cb)
+    if cb.identifier == "tikz" then
+        local filetype = extension_for[FORMAT] or 'svg'
+        local fbasename = pandoc.sha1(el.text) .. '.' .. filetype
+        local fname = system.get_working_directory() .. '/' .. fbasename
+        if not file_exists(fname) then
+            tikz2image(el.text, filetype, fname)
+        end
+        return pandoc.Para({pandoc.Image({}, fbasename)})
+    else
+        return cb
     end
-    return pandoc.Para({pandoc.Image({}, fbasename)})
-  else
-   return el
-  end
 end
+
+return {
+  { CodeBlock = rendertikz }
+}
