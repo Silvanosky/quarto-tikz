@@ -50,35 +50,42 @@ local function starts_with(start, str)
   return str:sub(1, #start) == start
 end
 
+local function contains(list, x)
+	for _, v in pairs(list) do
+		if v == x then return true end
+	end
+	return false
+end
 
---function RawBlock(el)
---  if starts_with('\\begin{tikzpicture}', el.text) then
---    local filetype = extension_for[FORMAT] or 'svg'
---    local fbasename = pandoc.sha1(el.text) .. '.' .. filetype
- --   local fname = system.get_working_directory() .. '/' .. fbasename
- --   if not file_exists(fname) then
- --     tikz2image(el.text, filetype, fname)
- --   end
- --   return pandoc.Para({pandoc.Image({}, fbasename)})
- -- else
- --  return el
- -- end
---end
+function get_file_name(file)
+      local file_name = file:match("[^/]*$")
+      return file_name:sub(0, #file_name)
+end
 
 local function rendertikz(cb)
-    if cb.identifier == "tikz" then
+    if cb.attr.classes:find('{tikz}') or cb.attr.classes:find('tikz') then
         local filetype = extension_for[FORMAT] or 'svg'
-        local fbasename = pandoc.sha1(el.text) .. '.' .. filetype
-        local fname = system.get_working_directory() .. '/' .. fbasename
+        local output_directory = quarto.doc.input_file:sub(1, -5) .. '_files'
+        local fdirname = get_file_name(output_directory)
+        quarto.log.output(fdirname)
+
+        local fbasename = pandoc.sha1(cb.text) .. '.' .. filetype
+        local fname = output_directory .. '/' .. fbasename
+        local relpath = fdirname .. '/' .. fbasename
+
         if not file_exists(fname) then
-            tikz2image(el.text, filetype, fname)
+            tikz2image(cb.text, filetype, fname)
         end
-        return pandoc.Para({pandoc.Image({}, fbasename)})
+
+        local b = pandoc.Div(pandoc.Image({}, relpath), cb.attr)
+        return b
     else
         return cb
     end
 end
 
 return {
-  { CodeBlock = rendertikz }
+    {
+        CodeBlock = rendertikz
+    }
 }
