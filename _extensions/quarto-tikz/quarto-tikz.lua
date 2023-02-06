@@ -5,29 +5,31 @@ local system = require 'pandoc.system'
 
 local tikz_doc_template = [[
 \documentclass{standalone}
+
 \usepackage{xcolor}
+\usepackage{graphicx}
 \usepackage{tikz}
+
+\usetikzlibrary{shapes.geometric, arrows}
+\usetikzlibrary{calc,positioning}
+
+\graphicspath{{../../}}
+
 \begin{document}
 \nopagecolor
 %s
 \end{document}
 ]]
 
-local function tikz2image(src, filetype, outfile)
-  system.with_temporary_directory('tikz2image', function (tmpdir)
-    system.with_working_directory(tmpdir, function()
-      local f = io.open('tikz.tex', 'w')
+local function tikz2image(src, filetype, outfile, outdir)
+    --system.with_working_directory(wd, function()
+      local f = io.open(outfile .. '.tex', 'w')
       f:write(tikz_doc_template:format(src))
       f:close()
       --os.execute('pdflatex tikz.tex')
-      os.execute('pdflatex -interaction=nonstopmode tikz.tex')
-      if filetype == 'pdf' then
-        os.rename('tikz.pdf', outfile)
-      else
-        os.execute('pdf2svg tikz.pdf ' .. outfile)
-      end
-    end)
-  end)
+      os.execute('pdflatex -interaction=nonstopmode -output-directory='.. outdir .. ' ' .. outfile .. '.tex' .. ' --embedimages --box media -8bit')
+      os.execute('pdf2svg '.. outfile .. '.pdf ' .. outfile)
+    --end)
 end
 
 extension_for = {
@@ -71,15 +73,25 @@ local function rendertikz(cb)
         quarto.log.output(fdirname)
 
         local fbasename = pandoc.sha1(cb.text) .. '.' .. filetype
-        local fname = output_directory .. '/' .. fbasename
-        local relpath = fdirname .. '/' .. fbasename
+        local fname = output_directory .. '/tikz/' .. fbasename
+        local relpath = fdirname .. '/tikz/' .. fbasename
 
-        if not file_exists(fname) then
-            tikz2image(cb.text, filetype, fname)
+        if not file_exists(output_directory .. '/tikz') then
+            os.execute("mkdir " .. output_directory)
+            os.execute("mkdir " .. output_directory .. '/tikz')
         end
 
-        local b = pandoc.Div(pandoc.Image({}, relpath), cb.attr)
-        return b
+        if not file_exists(fname) then
+            tikz2image(cb.text, filetype, fname, fdirname .. '/tikz')
+        end
+        local file = io.open(fname, "r") -- r read mode and b binary mode
+        local content = file:read("*all")
+        file:close()
+
+        local a = pandoc.RawBlock('html', '<object data="' .. relpath.. '" type="image/svg+xml"></object>')
+        local b = pandoc.RawBlock('html', content)
+        local c = pandoc.Div(b, cb.attr)
+        return c
     else
         return cb
     end
