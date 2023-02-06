@@ -21,7 +21,7 @@ local tikz_doc_template = [[
 \end{document}
 ]]
 
-local function tikz2image(src, filetype, outfile, outdir)
+local function tikz2image(id, src, filetype, outfile, outdir)
     --system.with_working_directory(wd, function()
       local f = io.open(outfile .. '.tex', 'w')
       f:write(tikz_doc_template:format(src))
@@ -72,7 +72,8 @@ local function rendertikz(cb)
         local fdirname = get_file_name(output_directory)
         quarto.log.output(fdirname)
 
-        local fbasename = pandoc.sha1(cb.text) .. '.' .. filetype
+        local id = pandoc.sha1(cb.text)
+        local fbasename = id .. '.' .. filetype
         local fname = output_directory .. '/tikz/' .. fbasename
         local relpath = fdirname .. '/tikz/' .. fbasename
 
@@ -81,17 +82,18 @@ local function rendertikz(cb)
             os.execute("mkdir " .. output_directory .. '/tikz')
         end
 
-        if not file_exists(fname) then
-            tikz2image(cb.text, filetype, fname, fdirname .. '/tikz')
-        end
+--        if not file_exists(fname) then
+            tikz2image(id, cb.text, filetype, fname, fdirname .. '/tikz')
+ --       end
         local file = io.open(fname, "r") -- r read mode and b binary mode
         local content = file:read("*all")
         file:close()
 
         local a = pandoc.RawBlock('html', '<object data="' .. relpath.. '" type="image/svg+xml"></object>')
         local b = pandoc.RawBlock('html', content)
+        local aa = pandoc.Div(pandoc.Image({}, relpath), cb.attr)
         local c = pandoc.Div(b, cb.attr)
-        return c
+        return aa
     else
         return cb
     end
